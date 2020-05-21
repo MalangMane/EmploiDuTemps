@@ -1,4 +1,5 @@
-from BDD.sqliteservice import *
+from DB.sqliteservice import *
+from DB.edtdb import EdtDb
 from datetime import *
 import re
 
@@ -8,30 +9,13 @@ class CoursController:
     def __init__(self):
         self.TABLENAME = "COURS"
         self.sqlservice = SqliteService.getInstance()
+        self.edt_db = EdtDb(self.sqlservice)
 
     def checkingCours(self, entrys, prenomNomEnseignant):
-        queryToCheckCoursIsDispo = """
-            SELECT COUNT(crs.idCours) AS countCours
-            FROM COURS AS crs
-            INNER JOIN CLASSE AS cls ON crs.k_idClasse = cls.idClasse
-            WHERE cls.libelleClasse = '{0}' AND crs.heureCours = '{1}' AND crs.jourCours = '{2}'
-        """.format(entrys["Classe"].get(), entrys["Heure"].get(), entrys["Jour"].get())
-
-        if self.sqlservice.selectByQueryEntity(queryToCheckCoursIsDispo)[0]['countCours'] != 0:
-            messagebox.showerror(
-                "Indisponible", "Un cours a déjà lieu à ce créneau horaire")
+        if self.edt_db.queryToCheckCoursIsDispo(self.edt_db, entrys["Classe"].get(), entrys["Heure"].get(), entrys["Jour"].get()) == False:
             return False
 
-        queryToCheckEnseignantIsDispo = """
-            SELECT COUNT(crs.idCours) AS countCours
-            FROM COURS AS crs
-            INNER JOIN ENSEIGNANT AS e ON crs.k_idEnseignant = e.idEnseignant
-            WHERE e.prenomEnseignant = '{0}' AND e.nomEnseignant = '{1}' AND crs.jourCours = '{2}' AND crs.heureCours = '{3}'
-        """.format(prenomNomEnseignant[0], prenomNomEnseignant[1], entrys["Jour"].get(), entrys["Heure"].get())
-
-        if self.sqlservice.selectByQueryEntity(queryToCheckEnseignantIsDispo)[0]['countCours'] != 0:
-            messagebox.showerror(
-                "Indisponible", "Un cours a déjà lieu avec cette enseignant")
+        if self.edt_db.queryToCheckEnseignantIsDispo(self.edt_db, prenomNomEnseignant[0], prenomNomEnseignant[1], entrys["Jour"].get(), entrys["Heure"].get()) == False:
             return False
 
         return True

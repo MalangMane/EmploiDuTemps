@@ -1,6 +1,6 @@
 import tkinter as tk
 from functools import partial
-from BDD.sqliteservice import *
+from DB.sqliteservice import *
 from VUES.courscomponents import *
 from VUES.eleveform import EleveForm
 from VUES.courform import CoursForm
@@ -11,10 +11,12 @@ from VUES.optionmenucustom import OptionMenuCustom
 from CONTROLLERS.courscontroller import *
 from toolsbox import *
 from VUES.affichageemploidutemps import *
+from DB.edtdb import EdtDb
 
 
 # Déclaration de l'application principale
 root = tk.Tk()
+
 
 width = root.winfo_screenwidth()
 height = root.winfo_screenheight()
