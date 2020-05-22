@@ -11,12 +11,10 @@ from VUES.optionmenucustom import OptionMenuCustom
 from CONTROLLERS.courscontroller import *
 from toolsbox import *
 from VUES.affichageemploidutemps import *
-from DB.edtdb import EdtDb
 
 
 # Déclaration de l'application principale
 root = tk.Tk()
-
 
 width = root.winfo_screenwidth()
 height = root.winfo_screenheight()

@@ -1,18 +1,27 @@
-from BDD.sqliteservice import *
+from DB.sqliteservice import *
+from DB.edtdb import EdtDb
 from tkinter import *
+
 
 class MatiereController:
 
     def __init__(self):
-        self.sqlservice = SqliteService.getInstance()
-        self.TABLENAME = 'MATIERE'
+        self.edt_db = EdtDb(SqliteService.getInstance())
 
     def addMatiere(self, entrys):
-        datas = [(None,entrys["Matiere"].get())]
-        self.sqlservice.insertEntity(tablename=self.TABLENAME, datas=datas)
+        datas = [(None, entrys["Matiere"].get())]
+        self.edt_db.insertSubject(self.edt_db, datas)
 
-    def deleteMatiere(self,entrys):
-        query = """SELECT idMatiere FROM MATIERE WHERE libelleMatiere = '{0}'""".format(entrys["Matiere"].get())
-        idMatiere = self.sqlservice.selectByQueryEntity(query=query)[0]["idMatiere"]
-        self.sqlservice.deleteEntity(tablename=self.TABLENAME, idEntity=idMatiere)
-        self.sqlservice.deleteEntityByQuery("DELETE FROM MATIERE_ENSEIGNANT WHERE k_idMatiere = {0}".format(idMatiere))
+    def deleteMatiere(self, entrys):
+        idSubject = self.edt_db.getIdSubjectByName(
+            self.edt_db, entrys["Matiere"].get())
+
+        if idSubject.__len__() == 0:
+            messagebox.showerror('Erreur', 'Matière introuvable')
+            return
+
+        idSubject = idSubject[0]["idMatiere"]
+
+        self.edt_db.deleteSubject(self.edt_db, idSubject)
+        self.edt_db.deleteAssociationTeacherSubjectWithSubjectId(
+            self.edt_db, idSubject)

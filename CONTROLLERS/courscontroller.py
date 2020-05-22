@@ -7,48 +7,26 @@ import re
 class CoursController:
 
     def __init__(self):
-        self.TABLENAME = "COURS"
-        self.sqlservice = SqliteService.getInstance()
-        self.edt_db = EdtDb(self.sqlservice)
+        self.edt_db = EdtDb(SqliteService.getInstance())
 
     def checkingCours(self, entrys, prenomNomEnseignant):
-        if self.edt_db.queryToCheckCoursIsDispo(self.edt_db, entrys["Classe"].get(), entrys["Heure"].get(), entrys["Jour"].get()) == False:
+        if self.edt_db.checkCoursIsDispo(self.edt_db, entrys["Classe"].get(), entrys["Heure"].get(), entrys["Jour"].get()) == False:
             return False
 
-        if self.edt_db.queryToCheckEnseignantIsDispo(self.edt_db, prenomNomEnseignant[0], prenomNomEnseignant[1], entrys["Jour"].get(), entrys["Heure"].get()) == False:
+        if self.edt_db.checkEnseignantIsDispo(self.edt_db, prenomNomEnseignant[0], prenomNomEnseignant[1], entrys["Jour"].get(), entrys["Heure"].get()) == False:
             return False
 
         return True
 
     def deleteCours(self, entrys):
-        idCours = entrys["Jour/Heure/Matiere"].get().split()[0]
-        self.sqlservice.deleteEntity(self.TABLENAME, idCours)
+        idCourse = entrys["Jour/Heure/Matiere"].get().split()[0]
+        self.edt_db.deleteCourse(self.edt_db, idCourse)
 
     def updateCours(self, entrys):
         prenomNomEnseignant = entrys["Enseignant"].get().split()
         idCours = entrys["Jour/Heure/Matiere"].get().split()[0]
-
-        queryToUpdate = """
-            UPDATE {0}
-            SET k_idClasse = (
-                SELECT idClasse
-                FROM CLASSE
-                WHERE libelleClasse = '{1}'
-            ),
-            k_idEnseignant = (
-                SELECT idEnseignant
-                FROM ENSEIGNANT
-                WHERE nomEnseignant = '{2}' AND prenomEnseignant = '{3}'
-            ),
-            k_idMatiere = (
-                SELECT idMatiere
-                FROM MATIERE
-                WHERE libelleMatiere = '{4}'
-            )
-            WHERE idCours = {5}
-        """.format(self.TABLENAME, entrys["Classe"].get(), prenomNomEnseignant[1], prenomNomEnseignant[0], entrys["Matiere"].get(), idCours)
-
-        self.sqlservice.updateEntity(queryToUpdate)
+        self.edt_db.updateCourse(self.edt_db, self.TABLENAME, entrys["Classe"].get(
+        ), prenomNomEnseignant[1], prenomNomEnseignant[0], entrys["Matiere"].get(), idCours)
 
     def addCours(self, entrys):
         prenomNomEnseignant = entrys["Enseignant"].get().split()
@@ -63,45 +41,24 @@ class CoursController:
 
         dateCours = (
             "{0}-{1}-{2}").format(jours, mois, entrys["Annee"].get())
+
         if self.checkingCours(entrys, prenomNomEnseignant) == False:
             return
 
-        queryToGetMatiereAndEnseignant = """
-            SELECT m_e.k_idMatiere , m_e.k_idEnseignant
-            FROM MATIERE_ENSEIGNANT AS m_e
-            INNER JOIN ENSEIGNANT AS e ON m_e.k_idEnseignant = e.idEnseignant
-            INNER JOIN MATIERE AS mat ON m_e.k_idMatiere = mat.idMatiere
-            WHERE e.nomEnseignant = '{0}' AND e.prenomEnseignant = '{1}' AND mat.libelleMatiere = '{2}' 
-        """ .format(prenomNomEnseignant[1], prenomNomEnseignant[0], entrys["Matiere"].get())
+        matiereEtEnseignant = self.edt_db.getIdSubjectAndIdTeacher(
+            self.edt_db, prenomNomEnseignant[1], prenomNomEnseignant[0], entrys["Matiere"].get())
 
-        matiereEtEnseignant = self.sqlservice.selectByQueryEntity(
-            query=queryToGetMatiereAndEnseignant)
-
-        queryToGetNomClasse = """SELECT idClasse
-                                 FROM CLASSE
-                                 WHERE libelleClasse = '{0}'""".format(entrys["Classe"].get())
-
-        laClasse = self.sqlservice.selectByQueryEntity(queryToGetNomClasse)
+        laClasse = self.edt_db.getClassSchoolId(
+            self.edt_db, entrys["Classe"].get())
 
         datas = [(None, dateCours, entrys["Heure"].get(), laClasse[0]["idClasse"],
                   matiereEtEnseignant[0]["k_idEnseignant"], matiereEtEnseignant[0]["k_idMatiere"])]
 
-        self.sqlservice.insertEntity('COURS', datas)
+        self.edt_db.insertCours(self.edt_db, data=datas)
 
-    def selectCours(self, dateRef, classe):
-        jourDeLaSemaine = dateRef.weekday()
-        startDate = dateRef - timedelta(days=jourDeLaSemaine)
+    def selectCours(self, dateRef, classschool):
+        dayOfWeek = dateRef.weekday()
+        startDate = dateRef - timedelta(days=dayOfWeek)
         result = []
-        jour = (startDate).strftime("%d-%m-%Y")
-        for i in range(1, 7):
-            query = """SELECT cls.libelleClasse, crs.jourCours, crs.heureCours, m.libelleMatiere, e.nomEnseignant, e.prenomEnseignant
-                        FROM COURS AS crs
-                        INNER JOIN MATIERE AS m ON crs.k_idMatiere =  m.idMatiere 
-                        INNER JOIN ENSEIGNANT AS e  ON crs.k_idEnseignant = e.idEnseignant
-                        INNER JOIN CLASSE  AS cls ON crs.k_idClasse = cls.idClasse
-                        WHERE  crs.jourCours = \'{0}\' AND cls.libelleClasse = \'{1}\'""".format(jour, classe)
-            cours = self.sqlservice.selectByQueryEntity(query=query)
-            if cours.__len__() != 0:
-                result.append(cours)
-            jour = (startDate + timedelta(days=i)).strftime("%d-%m-%Y")
-        return result
+        day = (startDate).strftime("%d-%m-%Y")
+        return self.edt_db.selectCoursForWeek(self.edt_db, day, classschool, startDate)

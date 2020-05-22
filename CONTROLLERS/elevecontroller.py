@@ -1,42 +1,41 @@
-from BDD.sqliteservice import *
-from tkinter import *
+from DB.sqliteservice import SqliteService
+from DB.edtdb import EdtDb
+from tkinter import messagebox
+
+
 class EleveController:
 
     def __init__(self):
-        self.sqlservice = SqliteService.getInstance()
-        self.TABLENAME = 'APPRENANT'
+        self.edt_db = EdtDb(SqliteService.getInstance())
 
+    def addEleve(self, entrys):
 
-    def addEleve(self,entrys):
-        query = """SELECT idClasse
-                    FROM CLASSE
-                    WHERE libelleClasse = \"%s\"""" % entrys["Classe"].get() 
-        idClasse = self.sqlservice.selectByQueryEntity(query=query)[0]["idClasse"]
-        datas = [(entrys["Nom"].get() ,entrys["Prenom"].get() ,None,idClasse)]
-        self.sqlservice.insertEntity(tablename=self.TABLENAME, datas=datas)
+        idClasse = self.edt_db.getClassSchoolId(
+            self.edt_db, entrys["Classe"].get())
 
+        if idClasse.__len__() == 0:
+            messagebox.showerror('Indisponible', 'Aucune classe a été trouvé')
+            return
 
-    def deleteEleve(self,entrys):
+        idClasse = idClasse[0]["idClasse"]
+        datas = [(entrys["Nom"].get(), entrys["Prenom"].get(), None, idClasse)]
+        self.edt_db.insertStudent(self.edt_db, datas)
+
+    def deleteEleve(self, entrys):
         nomprenom = entrys["Eleves"].get().split()
-        query = """SELECT a.idEleve FROM APPRENANT AS a INNER JOIN CLASSE AS cls ON a.idClasse = cls.idClasse WHERE  a.nomApprenant = '{0}' AND a.prenomApprenant = '{1}' AND cls.libelleClasse = '{2}'""".format(nomprenom[1], nomprenom[0], entrys["Classe"].get() )
-        idEleve = self.sqlservice.selectByQueryEntity(query=query)[0]["idEleve"]
-        self.sqlservice.deleteEntity(tablename=self.TABLENAME, idEntity=idEleve)
-            
+        idStudent = self.edt_db.selectStudentByNameAndClassSchool(
+            self.edt_db, nomprenom[1], nomprenom[0], entrys["Classe"].get())
 
-    def associateEleveWithClasse(self,entrys):
+        if idStudent.__len__() == 0:
+            messagebox.showerror('Erreur', 'Aucun élève a été trouvé')
+            return
+
+        self.edt_db.deleteStudent(self.edt_db, idStudent[0]["idEleve"])
+
+    def associateEleveWithClasse(self, entrys):
         nomprenom = entrys["Eleves"].get().split()
-        query = '''UPDATE {0}
-                    SET idClasse = (
-                        SELECT idClasse 
-                        FROM CLASSE 
-                        WHERE libelleClasse = '{1}'
-                    )
-                    WHERE idEleve = (
-                        SELECT idEleve 
-                        FROM APPRENANT 
-                        WHERE prenomApprenant = '{2}' AND nomApprenant = '{3}'
-                    )'''.format(self.TABLENAME,entrys["NewClasse"].get() ,nomprenom[0], nomprenom[1])
-        self.sqlservice.updateEntity(query)
+        self.edt_db.updateStudentWithClassSchool(
+            self.edt_db, entrys["NewClasse"].get(), nomprenom[0], nomprenom[1])
 
     def getEleves(self):
-        return self.sqlservice.selectAllFieldEntity(tablename=self.TABLENAME)
+        return self.edt_db.getStudents(self.edt_db)
